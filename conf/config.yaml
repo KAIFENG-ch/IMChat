@@ -1,0 +1,15 @@
+sql:
+  host : 127.0.0.1
+  port : 3306
+  username : root
+  password : 123456
+  database : GOLANG
+
+redis:
+  Addr : 127.0.0.1
+  Port : 6379
+
+mongo:
+  Host : 127.0.0.1
+  Port : 27017
+  database : IMChat
