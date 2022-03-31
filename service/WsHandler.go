@@ -32,12 +32,6 @@ type Broadcast struct {
 	Type    int
 }
 
-// SendMsg 发送信息
-type SendMsg struct {
-	Type    int    `json:"type"`
-	Content string `json:"content"`
-}
-
 // ReplyMsg 回复信息
 type ReplyMsg struct {
 	From    string `json:"from"`
@@ -52,13 +46,12 @@ type Message struct {
 	Content   string `json:"content,omitempty"`
 }
 
-// WsHandler 升级为ws协议
 func WsHandler(c *gin.Context) {
 	uid := c.Query("uid")
 	toUid := c.Query("toUid")
 	conn, err := (&websocket.Upgrader{
-		ReadBufferSize:   256,
-		WriteBufferSize:  256,
+		WriteBufferSize:  512,
+		ReadBufferSize:   512,
 		HandshakeTimeout: 5 * time.Hour,
 		CheckOrigin: func(r *http.Request) bool {
 			return true
@@ -73,13 +66,14 @@ func WsHandler(c *gin.Context) {
 		Socket: conn,
 		Send:   make(chan []byte),
 	}
-	//将用户注册并进行读写
 	Manager.Register <- client
 	go client.Write()
 	go client.Read()
+	//defer func() {
+	//	client.
+	//}()
 }
 
-// 读方法
 func (c *Client) Read() {
 	defer func() {
 		Manager.Unregister <- c
@@ -93,17 +87,10 @@ func (c *Client) Read() {
 			Message: message,
 		}
 		log.Printf("收到客户的信息:%s", string(message))
-		//replyMsg := &ReplyMsg{
-		//	Code: 200,
-		//	Content: "ok",
-		//}
-		//msg,_ := json.Marshal(replyMsg)
-		//_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
 		Manager.Broadcast <- broadcast
 	}
 }
 
-//写方法
 func (c *Client) Write() {
 	defer func() {
 		_ = c.Socket.Close()

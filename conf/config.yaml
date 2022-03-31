@@ -3,7 +3,7 @@ sql:
   port : 3306
   username : root
   password : 123456
-  database : GOLANG
+  database : golang
 
 redis:
   Addr : 127.0.0.1

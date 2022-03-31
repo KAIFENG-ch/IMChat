@@ -1,12 +1,10 @@
 package service
 
 import (
-	"IMChat/dao"
 	"encoding/json"
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
-	"time"
 )
 
 // Manager 建立连接用户结构体
@@ -66,7 +64,7 @@ func (m *ClientManage) Connect() {
 				}
 				msg, err := json.Marshal(replyMsg)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
-				err = dao.InsertMsg("IMChat", sendId, string(message.Message), 1, int64(3*24*30*time.Hour))
+				//err = dao.InsertMsg("IMChat", sendId, string(message.Message), 1, int64(3*24*30*time.Hour))
 				if err != nil {
 					fmt.Println("InsertOneMsg Err", err)
 				}
@@ -78,7 +76,7 @@ func (m *ClientManage) Connect() {
 				}
 				msg, err := json.Marshal(replyMsg)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
-				err = dao.InsertMsg("IMChat", sendId, string(message.Message), 0, int64(3*24*30*time.Hour))
+				//err = dao.InsertMsg("IMChat", sendId, string(message.Message), 0, int64(3*24*30*time.Hour))
 				if err != nil {
 					fmt.Println("InsertOneMsg Err", err)
 				}

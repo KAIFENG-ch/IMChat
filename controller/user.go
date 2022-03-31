@@ -2,6 +2,7 @@ package controller
 
 import (
 	"IMChat/service"
+	"IMChat/utils"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,8 +20,19 @@ func Login(c *gin.Context) {
 	var login service.UserRegister
 	err := c.ShouldBind(&login)
 	if err != nil {
-		return
+		c.JSON(400, err)
 	}
 	res := login.Login()
+	c.JSON(200, res)
+}
+
+func Update(c *gin.Context) {
+	var updates service.UserUpdate
+	claims, _ := utils.ParseToken(c.GetHeader("Authorization"))
+	err := c.ShouldBind(&updates)
+	if err != nil {
+		c.JSON(400, err)
+	}
+	res := updates.Update(claims.Id)
 	c.JSON(200, res)
 }
