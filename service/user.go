@@ -66,7 +66,7 @@ func (u UserRegister) Login() *serialize.Base {
 	return &serialize.Base{
 		Status: 200,
 		Msg:    "OK",
-		Data:   serialize.Datalist{Item: token, Total: 1},
+		Data:   serialize.Datalist{Item: token},
 	}
 }
 
