@@ -36,3 +36,14 @@ func Update(c *gin.Context) {
 	res := updates.Update(claims.Id)
 	c.JSON(200, res)
 }
+
+func CreateGroup(c *gin.Context) {
+	var group service.GroupRegister
+	claims, _ := utils.ParseToken(c.GetHeader("Authorization"))
+	err := c.ShouldBind(&group)
+	if err != nil {
+		c.JSON(400, err)
+	}
+	res := group.CreateGroup(claims.Id)
+	c.JSON(200, res)
+}

@@ -25,7 +25,7 @@ func Database(dsn string) {
 	sqlDB.SetConnMaxIdleTime(time.Hour)
 	DB = db
 	err = DB.Set("gorm:table_option", "ENGINE=InnoDB").
-		AutoMigrate(&User{})
+		AutoMigrate(&User{}, &Group{})
 	if err != nil {
 		return
 	}

@@ -14,13 +14,15 @@ func Routers() *gin.Engine {
 		v1.GET("ping", func(c *gin.Context) {
 			c.JSON(200, "SUCCESS")
 		})
-		v1.GET("ws", service.WsHandler)
+		//v1.GET("ws", service.WsHandler)
 		v1.POST("/register", Register)
 		v1.POST("/login", Login)
 		loginRequired := v1.Group("/user")
 		loginRequired.Use(middleware.JWT())
 		{
+			loginRequired.GET("/ws", service.WsHandler)
 			loginRequired.PUT("/update", Update)
+			loginRequired.POST("/group", CreateGroup)
 		}
 	}
 	return r

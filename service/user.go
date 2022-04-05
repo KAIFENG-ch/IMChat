@@ -5,6 +5,7 @@ import (
 	"IMChat/serialize"
 	"IMChat/utils"
 	"golang.org/x/crypto/bcrypt"
+	"strconv"
 )
 
 type UserRegister struct {
@@ -19,6 +20,10 @@ type UserUpdate struct {
 	Age       uint   `form:"age"`
 	Birthday  string `form:"birthday"`
 	Signature string `form:"signature"`
+}
+
+type GroupRegister struct {
+	Name string `form:"name"`
 }
 
 func (u UserRegister) Register() *serialize.Base {
@@ -77,12 +82,60 @@ func (u UserUpdate) Update(ID uint) *serialize.Base {
 	}
 }
 
-//func MakeFriends(userID uint, blackID string) *serialize.Base {
-//id, err := strconv.Atoi(blackID)
-//var User model.User
-//if err != nil {
-//	panic("数据格式错误！")
-//}
-//model.DB.Model(&model.User{}).Where("id = ?", userID).Find(&User)
-//
-//}
+func MakeFriends(userID string, friendID string) *serialize.Base {
+	fid, _ := strconv.Atoi(friendID)
+	uid, _ := strconv.Atoi(userID)
+	var user model.User
+	var friend model.User
+	model.DB.Model(&model.User{}).Where("id = ?", fid).First(&user)
+	model.DB.Model(&model.User{}).Where("id = ?", uid).First(&friend)
+	err := model.DB.Model(&user).Association("Friends").Append(&friend)
+	if err != nil {
+		panic(err)
+	}
+	err = model.DB.Model(&friend).Association("Friends").Append(&user)
+	if err != nil {
+		panic(err)
+	}
+	return &serialize.Base{
+		Status: 200,
+		Msg:    "ok",
+		Data:   "交友成功",
+	}
+}
+
+func (c *GroupRegister) CreateGroup(userID uint) *serialize.Base {
+	var group model.Group
+	var user model.User
+	model.DB.Model(&model.User{}).Where("id = ?", userID).First(&user)
+	group = model.Group{
+		Name:  c.Name,
+		Users: []model.User{user},
+	}
+	model.DB.Create(&group)
+	return &serialize.Base{
+		Status: 200,
+		Msg:    "ok",
+		Data:   "创建成功！",
+	}
+}
+
+func PullGroup(userID string, GroupID int) *serialize.Base {
+	uid, err := strconv.Atoi(userID)
+	if err != nil {
+		panic(err)
+	}
+	var user model.User
+	var group model.Group
+	model.DB.Model(&model.User{}).Where("id = ?", uid).First(&user)
+	model.DB.Model(&model.Group{}).Where("id = ?", GroupID).First(&group)
+	err = model.DB.Model(&group).Association("Users").Append(&user)
+	if err != nil {
+		panic(err)
+	}
+	return &serialize.Base{
+		Status: 200,
+		Msg:    "ok",
+		Data:   "进群成功！",
+	}
+}

@@ -2,22 +2,18 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
 )
 
 // Manager 建立连接用户结构体
 var Manager = &ClientManage{
-	Clients:    make(map[string]*Client),
-	Broadcast:  make(chan *Broadcast),
-	Register:   make(chan *Client),
-	Reply:      make(chan *Client),
-	Unregister: make(chan *Client),
-}
-
-func creatId(uid, toUid string) string {
-	return uid + "_" + toUid
+	Clients:        make(map[string]*Client),
+	GroupBroadcast: make(chan *GroupBroadcast),
+	Broadcast:      make(chan *Broadcast),
+	Register:       make(chan *Client),
+	Reply:          make(chan *Client),
+	Unregister:     make(chan *Client),
 }
 
 // Connect 服务器与用户连接与断开连接
@@ -37,6 +33,7 @@ func (m *ClientManage) Connect() {
 				jsonMessage, _ := json.Marshal(&Message{Content: "A socket has disconnected"})
 				_ = conn.Socket.WriteMessage(websocket.TextMessage, jsonMessage)
 				close(conn.Send)
+				//close(Manager.Broadcast)
 				delete(Manager.Clients, conn.ID)
 			}
 		case message := <-Manager.Broadcast:
@@ -62,23 +59,30 @@ func (m *ClientManage) Connect() {
 					Code:    30000,
 					Content: "对方在线应答",
 				}
-				msg, err := json.Marshal(replyMsg)
+				msg, _ := json.Marshal(replyMsg)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
-				//err = dao.InsertMsg("IMChat", sendId, string(message.Message), 1, int64(3*24*30*time.Hour))
-				if err != nil {
-					fmt.Println("InsertOneMsg Err", err)
-				}
 			} else {
 				log.Println("对方不在线")
 				replyMsg := ReplyMsg{
 					Code:    30001,
 					Content: "对方不在线应答",
 				}
-				msg, err := json.Marshal(replyMsg)
+				msg, _ := json.Marshal(replyMsg)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
-				//err = dao.InsertMsg("IMChat", sendId, string(message.Message), 0, int64(3*24*30*time.Hour))
-				if err != nil {
-					fmt.Println("InsertOneMsg Err", err)
+			}
+		case message := <-Manager.GroupBroadcast:
+			log.Printf("群消息已发送：%s", message.Message.Content)
+			replyMsg := &ReplyMsg{
+				Code:    30000,
+				Content: "群消息已发送",
+			}
+			msg, _ := json.Marshal(replyMsg)
+			_ = message.Send.Socket.WriteMessage(websocket.TextMessage, msg)
+			for _, c := range message.Client {
+				conn, ok := Manager.Clients[c.ID]
+				if ok {
+					message.Message.SendID = message.Send.ID
+					conn.Send <- message.Message
 				}
 			}
 		}
