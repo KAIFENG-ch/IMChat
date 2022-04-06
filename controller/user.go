@@ -1,13 +1,13 @@
 package controller
 
 import (
-	"IMChat/service"
+	"IMChat/dao"
 	"IMChat/utils"
 	"github.com/gin-gonic/gin"
 )
 
 func Register(ctx *gin.Context) {
-	var register service.UserRegister
+	var register dao.UserRegister
 	err := ctx.ShouldBind(&register)
 	if err != nil {
 		return
@@ -17,7 +17,7 @@ func Register(ctx *gin.Context) {
 }
 
 func Login(c *gin.Context) {
-	var login service.UserRegister
+	var login dao.UserRegister
 	err := c.ShouldBind(&login)
 	if err != nil {
 		c.JSON(400, err)
@@ -27,7 +27,7 @@ func Login(c *gin.Context) {
 }
 
 func Update(c *gin.Context) {
-	var updates service.UserUpdate
+	var updates dao.UserUpdate
 	claims, _ := utils.ParseToken(c.GetHeader("Authorization"))
 	err := c.ShouldBind(&updates)
 	if err != nil {
@@ -38,7 +38,7 @@ func Update(c *gin.Context) {
 }
 
 func CreateGroup(c *gin.Context) {
-	var group service.GroupRegister
+	var group dao.GroupRegister
 	claims, _ := utils.ParseToken(c.GetHeader("Authorization"))
 	err := c.ShouldBind(&group)
 	if err != nil {

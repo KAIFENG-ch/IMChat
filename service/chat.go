@@ -1,6 +1,7 @@
 package service
 
 import (
+	"IMChat/dao"
 	"IMChat/model"
 	"IMChat/utils"
 	"encoding/json"
@@ -59,12 +60,6 @@ type ReplyMsg struct {
 	From    string `json:"from"`
 	Code    int    `json:"code"`
 	Content string `json:"content"`
-}
-
-type Message struct {
-	Sender    string `json:"sender,omitempty"`
-	Recipient string `json:"recipient,omitempty"`
-	Content   string `json:"content,omitempty"`
 }
 
 func WsHandler(c *gin.Context) {
@@ -213,12 +208,12 @@ func (c *Client) Write() {
 					Socket.WriteMessage(websocket.TextMessage, msg)
 				Manager.Clients.Unlock()
 			case 2:
-				res := PullGroup(c.ID, message.Group)
+				res := dao.PullGroup(c.ID, message.Group)
 				msg, _ := json.Marshal(&res)
 				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
 				log.Printf("发送到客户端的拉群申请")
 			case 1:
-				res := MakeFriends(c.ID, c.SendID)
+				res := dao.MakeFriends(c.ID, c.SendID)
 				msg, _ := json.Marshal(&res)
 				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
 				log.Printf("发送到客户端的申请")

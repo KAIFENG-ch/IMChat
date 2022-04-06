@@ -20,8 +20,9 @@ type RedisDb struct {
 }
 
 type MongoDb struct {
-	Host string
-	Port string
+	Host     string
+	Port     string
+	Database string
 }
 
 type Dbs struct {
@@ -47,11 +48,6 @@ func InitConfig() {
 		myConfig.Sql.Password, myConfig.Sql.Host, myConfig.Sql.Port, myConfig.Sql.Database)
 	model.Database(dsn)
 	err = model.RedisDB(myConfig.Redis.Host, myConfig.Redis.Port)
-	if err != nil {
-		return
-	}
-	mongoDsn := fmt.Sprintf("mongodb://%s:%s", myConfig.Mongo.Host, myConfig.Mongo.Port)
-	err = model.MongoDB(mongoDsn)
 	if err != nil {
 		return
 	}

@@ -1,9 +1,13 @@
 package service
 
 import (
+	"IMChat/dao"
+	"IMChat/model"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
+	"strconv"
+	"time"
 )
 
 // Manager 建立连接用户结构体
@@ -26,15 +30,15 @@ func (m *ClientManage) Connect() {
 			Manager.Clients.Lock()
 			Manager.Clients.Clients[conn.ID] = conn
 			Manager.Clients.Unlock()
-			jsonMessage, _ := json.Marshal(&Message{Content: "Successful connection to socket service"})
-			_ = conn.Socket.WriteMessage(websocket.TextMessage, jsonMessage)
-			// 断开连接
+			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
+			for i := 0; i < int(model.RDB.SCard(conn.ID).Val()); i++ {
+
+			}
 		case conn := <-Manager.Unregister:
 			log.Printf("用户离开:%v", conn.ID)
 			Manager.Clients.Lock()
 			if _, ok := Manager.Clients.Clients[conn.ID]; ok {
-				jsonMessage, _ := json.Marshal(&Message{Content: "A socket has disconnected"})
-				_ = conn.Socket.WriteMessage(websocket.TextMessage, jsonMessage)
+				_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("disconnect"))
 				close(conn.Send)
 				//close(Manager.Broadcast)
 				delete(Manager.Clients.Clients, conn.ID)
@@ -65,6 +69,8 @@ func (m *ClientManage) Connect() {
 					Content: "对方在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
+				insertID, _ := strconv.Atoi(message.Client.ID)
+				dao.InsertMsg(insertID, message.Message.Content, int64(time.Hour*24*30), true)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			} else {
 				log.Println("对方不在线")
@@ -73,6 +79,9 @@ func (m *ClientManage) Connect() {
 					Content: "对方不在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
+				insertID, _ := strconv.Atoi(message.Client.ID)
+				dao.InsertMsg(insertID, message.Message.Content, int64(time.Hour*24*30), false)
+				model.RDB.SAdd(message.Client.SendID, message.Message.Content)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			}
 		case message := <-Manager.GroupBroadcast:
