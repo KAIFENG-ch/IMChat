@@ -8,7 +8,7 @@ import (
 
 // Manager 建立连接用户结构体
 var Manager = &ClientManage{
-	Clients:        make(map[string]*Client),
+	Clients:        ClientMap{Clients: make(map[string]*Client)},
 	GroupBroadcast: make(chan *GroupBroadcast),
 	Broadcast:      make(chan *Broadcast),
 	Register:       make(chan *Client),
@@ -23,24 +23,29 @@ func (m *ClientManage) Connect() {
 		// 连接
 		case conn := <-Manager.Register:
 			log.Printf("新用户加入:%v", conn.ID)
-			Manager.Clients[conn.ID] = conn
+			Manager.Clients.Lock()
+			Manager.Clients.Clients[conn.ID] = conn
+			Manager.Clients.Unlock()
 			jsonMessage, _ := json.Marshal(&Message{Content: "Successful connection to socket service"})
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, jsonMessage)
 			// 断开连接
 		case conn := <-Manager.Unregister:
 			log.Printf("用户离开:%v", conn.ID)
-			if _, ok := Manager.Clients[conn.ID]; ok {
+			Manager.Clients.Lock()
+			if _, ok := Manager.Clients.Clients[conn.ID]; ok {
 				jsonMessage, _ := json.Marshal(&Message{Content: "A socket has disconnected"})
 				_ = conn.Socket.WriteMessage(websocket.TextMessage, jsonMessage)
 				close(conn.Send)
 				//close(Manager.Broadcast)
-				delete(Manager.Clients, conn.ID)
+				delete(Manager.Clients.Clients, conn.ID)
 			}
+			Manager.Clients.Unlock()
 		case message := <-Manager.Broadcast:
 			sendId := message.Client.SendID
 			flag := false
 			//_ = json.Unmarshal(message, &MessageStruct)
-			for id, conn := range Manager.Clients {
+			Manager.Clients.Lock()
+			for id, conn := range Manager.Clients.Clients {
 				if id != sendId {
 					continue
 				}
@@ -49,10 +54,10 @@ func (m *ClientManage) Connect() {
 					flag = true
 				default:
 					close(conn.Send)
-					delete(Manager.Clients, conn.ID)
+					delete(Manager.Clients.Clients, conn.ID)
 				}
+				Manager.Clients.Unlock()
 			}
-			//id := message.Client.ID
 			if flag {
 				log.Println("对方在线应答")
 				replyMsg := &ReplyMsg{
@@ -79,7 +84,12 @@ func (m *ClientManage) Connect() {
 			msg, _ := json.Marshal(replyMsg)
 			_ = message.Send.Socket.WriteMessage(websocket.TextMessage, msg)
 			for _, c := range message.Client {
-				conn, ok := Manager.Clients[c.ID]
+				if c == nil {
+					continue
+				}
+				Manager.Clients.Lock()
+				conn, ok := Manager.Clients.Clients[c.ID]
+				Manager.Clients.Unlock()
 				if ok {
 					message.Message.SendID = message.Send.ID
 					conn.Send <- message.Message

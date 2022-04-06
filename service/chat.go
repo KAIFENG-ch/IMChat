@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -20,9 +21,14 @@ type Client struct {
 	Send   chan *SendMsg
 }
 
+type ClientMap struct {
+	Clients map[string]*Client
+	sync.Mutex
+}
+
 // ClientManage websocket管理
 type ClientManage struct {
-	Clients        map[string]*Client
+	Clients        ClientMap
 	Broadcast      chan *Broadcast
 	GroupBroadcast chan *GroupBroadcast
 	Reply          chan *Client
@@ -64,6 +70,9 @@ type Message struct {
 func WsHandler(c *gin.Context) {
 	claims, _ := utils.ParseToken(c.GetHeader("Authorization"))
 	uid := strconv.Itoa(int(claims.Id))
+	if uid == "0" {
+		return
+	}
 	//uid := c.Query("uid")
 	toUid := c.Query("toUid")
 	conn, err := (&websocket.Upgrader{
@@ -113,7 +122,9 @@ func (c *Client) Read() {
 			}
 			var clients []*Client
 			for _, u := range users {
-				clients = append(clients, Manager.Clients[strconv.Itoa(int(u.ID))])
+				Manager.Clients.Lock()
+				clients = append(clients, Manager.Clients.Clients[strconv.Itoa(int(u.ID))])
+				Manager.Clients.Unlock()
 			}
 			broadcast := &GroupBroadcast{
 				Send:    c,
@@ -197,8 +208,10 @@ func (c *Client) Write() {
 					Content: message.Content,
 				}
 				msg, _ := json.Marshal(&replyMsg)
-				_ = Manager.Clients[c.ID].
+				Manager.Clients.Lock()
+				_ = Manager.Clients.Clients[c.ID].
 					Socket.WriteMessage(websocket.TextMessage, msg)
+				Manager.Clients.Unlock()
 			case 2:
 				res := PullGroup(c.ID, message.Group)
 				msg, _ := json.Marshal(&res)
