@@ -31,8 +31,18 @@ func (m *ClientManage) Connect() {
 			Manager.Clients.Clients[conn.ID] = conn
 			Manager.Clients.Unlock()
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
-			for i := 0; i < int(model.RDB.SCard(conn.ID).Val()); i++ {
-
+			var Unread []model.Message
+			model.DB.Model(&model.Message{}).Where("status = ? and id = ?", false, conn.ID).
+				Find(&Unread)
+			for _, msg := range Unread {
+				reply := &ReplyMsg{
+					From:    strconv.Itoa(msg.UserID),
+					Code:    30000,
+					Content: msg.Content,
+				}
+				message, _ := json.Marshal(&reply)
+				_ = conn.Socket.WriteMessage(websocket.TextMessage, message)
+				model.DB.Model(&msg).Update("status", true)
 			}
 		case conn := <-Manager.Unregister:
 			log.Printf("用户离开:%v", conn.ID)
@@ -69,8 +79,10 @@ func (m *ClientManage) Connect() {
 					Content: "对方在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
-				insertID, _ := strconv.Atoi(message.Client.ID)
-				dao.InsertMsg(insertID, message.Message.Content, int64(time.Hour*24*30), true)
+				uid, _ := strconv.Atoi(message.Client.ID)
+				toUid, _ := strconv.Atoi(message.Client.SendID)
+				dao.InsertMsg(uid, toUid, message.Message.Content,
+					int64(time.Hour*24*30), true)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			} else {
 				log.Println("对方不在线")
@@ -79,9 +91,10 @@ func (m *ClientManage) Connect() {
 					Content: "对方不在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
-				insertID, _ := strconv.Atoi(message.Client.ID)
-				dao.InsertMsg(insertID, message.Message.Content, int64(time.Hour*24*30), false)
-				model.RDB.SAdd(message.Client.SendID, message.Message.Content)
+				uid, _ := strconv.Atoi(message.Client.ID)
+				toUid, _ := strconv.Atoi(message.Client.SendID)
+				dao.InsertMsg(uid, toUid, message.Message.Content,
+					int64(time.Hour*24*30), false)
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			}
 		case message := <-Manager.GroupBroadcast:
