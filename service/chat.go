@@ -209,27 +209,27 @@ func (c *Client) Write() {
 					Socket.WriteMessage(websocket.TextMessage, msg)
 				Manager.Clients.Unlock()
 			case 2:
+				res := dao.PullGroup(c.ID, message.Group)
+				msg, _ := json.Marshal(&res)
+				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+				log.Printf("发送到客户端的拉群申请")
+			case 1:
 				if message.Content == "0" {
 					var sendUser model.User
-					model.DB.Model(&model.User{}).Where("id = ?", message.SendID).First(&sendUser)
+					model.DB.Model(&model.User{}).Where("id = ?", c.ID).First(&sendUser)
 					replyMsg := &ReplyMsg{
-						From:    message.SendID,
+						From:    c.ID,
 						Content: sendUser.Name + "请求添加你为好友",
 						Code:    30000,
 					}
 					msg, _ := json.Marshal(replyMsg)
 					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
 				} else if message.Content == "1" {
-					res := dao.PullGroup(c.ID, message.Group)
+					res := dao.MakeFriends(c.ID, c.SendID)
 					msg, _ := json.Marshal(&res)
 					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
-					log.Printf("发送到客户端的拉群申请")
+					log.Printf("发送到客户端的申请")
 				}
-			case 1:
-				res := dao.MakeFriends(c.ID, c.SendID)
-				msg, _ := json.Marshal(&res)
-				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
-				log.Printf("发送到客户端的申请")
 			case 0:
 				log.Printf("发送到客户端的消息:%s", message.Content)
 				replyMsg := &ReplyMsg{
