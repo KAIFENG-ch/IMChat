@@ -151,7 +151,8 @@ func (c *Client) Read() {
 			broadcast := &Broadcast{
 				Client: c,
 				Message: &SendMsg{
-					Type: 1,
+					Type:    1,
+					Content: message.Content,
 				},
 			}
 			log.Printf("收到客户的申请")
@@ -208,10 +209,22 @@ func (c *Client) Write() {
 					Socket.WriteMessage(websocket.TextMessage, msg)
 				Manager.Clients.Unlock()
 			case 2:
-				res := dao.PullGroup(c.ID, message.Group)
-				msg, _ := json.Marshal(&res)
-				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
-				log.Printf("发送到客户端的拉群申请")
+				if message.Content == "0" {
+					var sendUser model.User
+					model.DB.Model(&model.User{}).Where("id = ?", message.SendID).First(&sendUser)
+					replyMsg := &ReplyMsg{
+						From:    message.SendID,
+						Content: sendUser.Name + "请求添加你为好友",
+						Code:    30000,
+					}
+					msg, _ := json.Marshal(replyMsg)
+					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+				} else if message.Content == "1" {
+					res := dao.PullGroup(c.ID, message.Group)
+					msg, _ := json.Marshal(&res)
+					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+					log.Printf("发送到客户端的拉群申请")
+				}
 			case 1:
 				res := dao.MakeFriends(c.ID, c.SendID)
 				msg, _ := json.Marshal(&res)
