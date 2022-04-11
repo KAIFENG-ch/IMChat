@@ -2,7 +2,6 @@ package service
 
 import (
 	"IMChat/dao"
-	"IMChat/model"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
@@ -31,18 +30,9 @@ func (m *ClientManage) Connect() {
 			Manager.Clients.Clients[conn.ID] = conn
 			Manager.Clients.Unlock()
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
-			var Unread []model.Message
-			model.DB.Model(&model.Message{}).Where("status = ? and id = ?", false, conn.ID).
-				Find(&Unread)
-			for _, msg := range Unread {
-				reply := &ReplyMsg{
-					From:    strconv.Itoa(msg.UserID),
-					Code:    30000,
-					Content: msg.Content,
-				}
-				message, _ := json.Marshal(&reply)
-				_ = conn.Socket.WriteMessage(websocket.TextMessage, message)
-				model.DB.Model(&msg).Update("status", true)
+			res := dao.ReadMessage(conn.ID, conn.SendID)
+			for _, m := range res {
+				_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte(m.Content))
 			}
 		case conn := <-Manager.Unregister:
 			log.Printf("用户离开:%v", conn.ID)
@@ -57,8 +47,8 @@ func (m *ClientManage) Connect() {
 		case message := <-Manager.Broadcast:
 			sendId := message.Client.SendID
 			flag := false
-			//_ = json.Unmarshal(message, &MessageStruct)
 			Manager.Clients.Lock()
+			//_ = json.Unmarshal(message, &MessageStruct)
 			for id, conn := range Manager.Clients.Clients {
 				if id != sendId {
 					continue
@@ -70,8 +60,8 @@ func (m *ClientManage) Connect() {
 					close(conn.Send)
 					delete(Manager.Clients.Clients, conn.ID)
 				}
-				Manager.Clients.Unlock()
 			}
+			Manager.Clients.Unlock()
 			if flag {
 				log.Println("对方在线应答")
 				replyMsg := &ReplyMsg{
