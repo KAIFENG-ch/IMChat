@@ -20,7 +20,6 @@ func InsertMsg(uid int, toUid int, content string, expire int64, status bool) {
 		Content:  content,
 		EndAt:    time.Now().Unix() + expire,
 	}
-	model.RDB.LPush(strconv.Itoa(toUid), strconv.Itoa(uid)+":"+content)
 	model.DB.Create(&insertMsg)
 }
 
