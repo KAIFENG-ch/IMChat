@@ -2,7 +2,6 @@ package service
 
 import (
 	"IMChat/dao"
-	"IMChat/model"
 	"IMChat/utils"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
@@ -43,6 +42,7 @@ type Broadcast struct {
 }
 
 type GroupBroadcast struct {
+	GroupId int
 	Send    *Client
 	Client  []*Client
 	Message *SendMsg
@@ -68,7 +68,6 @@ func WsHandler(c *gin.Context) {
 	if uid == "0" {
 		return
 	}
-	//uid := c.Query("uid")
 	toUid := c.Query("toUid")
 	conn, err := (&websocket.Upgrader{
 		WriteBufferSize:  512,
@@ -99,7 +98,6 @@ func (c *Client) Read() {
 	}()
 	for true {
 		c.Socket.PongHandler()
-		//_, message, err := c.Socket.ReadMessage()
 		message := new(SendMsg)
 		err := c.Socket.ReadJSON(&message)
 		if err != nil {
@@ -108,10 +106,11 @@ func (c *Client) Read() {
 		}
 		switch message.Type {
 		case 3:
-			var users []model.User
-			var group model.Group
-			model.DB.Model(&model.Group{}).Where("id = ?", message.Group).First(&group)
-			err := model.DB.Model(&group).Association("Users").Find(&users)
+			//var users []model.User
+			//var group model.Group
+			//model.DB.Model(&model.Group{}).Where("id = ?", message.Group).First(&group)
+			//err := model.DB.Model(&group).Association("Users").Find(&users)
+			users := dao.FindMembers(message.Group)
 			if err != nil {
 				panic(err)
 			}
@@ -122,18 +121,14 @@ func (c *Client) Read() {
 				Manager.Clients.Unlock()
 			}
 			broadcast := &GroupBroadcast{
+				GroupId: message.Group,
 				Send:    c,
 				Client:  clients,
 				Message: message,
 			}
 			Manager.GroupBroadcast <- broadcast
 		case 2:
-			var group model.Group
-			var users []model.User
-			model.DB.Model(&model.Group{}).Where("id = ?", message.Group).
-				First(&group)
-			_ = model.DB.Model(&group).Where("user_id = ?", c.ID).
-				Association("Users").Find(&users)
+			users := dao.FindGroup(message.Group, c.ID)
 			if len(users) == 0 {
 				_ = c.Socket.WriteMessage(websocket.TextMessage, []byte("您不是群成员"))
 				continue
@@ -141,8 +136,9 @@ func (c *Client) Read() {
 			broadcast := &Broadcast{
 				Client: c,
 				Message: &SendMsg{
-					Type:  2,
-					Group: message.Group,
+					Type:    2,
+					Content: message.Content,
+					Group:   message.Group,
 				},
 			}
 			log.Printf("收到用户的拉群申请")
@@ -158,11 +154,7 @@ func (c *Client) Read() {
 			log.Printf("收到客户的申请")
 			Manager.Broadcast <- broadcast
 		case 0:
-			var user model.User
-			var friends []model.User
-			model.DB.Model(model.User{}).Where("id = ?", c.ID).First(&user)
-			_ = model.DB.Model(&user).Where("friend_id = ?", c.SendID).
-				Association("Friends").Find(&friends)
+			friends := dao.FindFriends(c.ID)
 			if len(friends) == 0 {
 				_ = c.Socket.WriteMessage(websocket.TextMessage,
 					[]byte("该用户不是你的好友"))
@@ -209,14 +201,25 @@ func (c *Client) Write() {
 					Socket.WriteMessage(websocket.TextMessage, msg)
 				Manager.Clients.Unlock()
 			case 2:
-				res := dao.PullGroup(c.ID, message.Group)
-				msg, _ := json.Marshal(&res)
-				_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
-				log.Printf("发送到客户端的拉群申请")
+				if message.Content == "0" {
+					sendUser := dao.FindUser(c.ID)
+					group := dao.FindOneGroup(message.Group)
+					replyMsg := &ReplyMsg{
+						From:    c.ID,
+						Content: sendUser.Name + " 请求你加入群聊" + group.Name,
+					}
+					msg, _ := json.Marshal(&replyMsg)
+					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+					log.Printf("发送到客户端的拉群申请")
+				} else if message.Content == "1" {
+					res := dao.PullGroup(c.ID, message.Group)
+					msg, _ := json.Marshal(&res)
+					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+					log.Printf("发送到客户端的进群申请")
+				}
 			case 1:
 				if message.Content == "0" {
-					var sendUser model.User
-					model.DB.Model(&model.User{}).Where("id = ?", c.ID).First(&sendUser)
+					sendUser := dao.FindUser(c.ID)
 					replyMsg := &ReplyMsg{
 						From:    c.ID,
 						Content: sendUser.Name + "请求添加你为好友",
@@ -224,11 +227,12 @@ func (c *Client) Write() {
 					}
 					msg, _ := json.Marshal(replyMsg)
 					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
+					log.Printf("发送到客户端的加好友申请")
 				} else if message.Content == "1" {
 					res := dao.MakeFriends(c.ID, c.SendID)
 					msg, _ := json.Marshal(&res)
 					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
-					log.Printf("发送到客户端的申请")
+					log.Printf("发送到客户端的好友通过申请")
 				}
 			case 0:
 				log.Printf("发送到客户端的消息:%s", message.Content)

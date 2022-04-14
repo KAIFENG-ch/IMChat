@@ -5,6 +5,8 @@ import (
 	"IMChat/serialize"
 	"IMChat/utils"
 	"golang.org/x/crypto/bcrypt"
+	"log"
+	"mime/multipart"
 	"strconv"
 )
 
@@ -66,19 +68,25 @@ func (u UserRegister) Login() *serialize.Base {
 	return &serialize.Base{
 		Status: 200,
 		Msg:    "OK",
-		Data:   serialize.Datalist{Item: token},
+		Data: serialize.Login{
+			Reply: "登录成功！",
+			Token: token,
+		},
 	}
 }
 
-func (u UserUpdate) Update(ID uint) *serialize.Base {
+func (u UserUpdate) Update(ID uint, headPhoto *multipart.FileHeader, url string) *serialize.Base {
 	model.DB.Model(&model.User{}).Where("id = ?", ID).
 		Updates(map[string]interface{}{"name": u.Username, "age": u.Age,
 			"gender": u.Gender, "birthday": u.Birthday, "email": u.Email,
-			"signature": u.Signature})
+			"signature": u.Signature, "head_photo": headPhoto.Filename})
 	return &serialize.Base{
 		Status: 200,
 		Msg:    "ok",
-		Data:   "修改成功！",
+		Data: serialize.Update{
+			Reply: "更新成功！",
+			Url:   url,
+		},
 	}
 }
 
@@ -91,11 +99,11 @@ func MakeFriends(userID string, friendID string) *serialize.Base {
 	model.DB.Model(&model.User{}).Where("id = ?", uid).First(&friend)
 	err := model.DB.Model(&user).Association("Friends").Append(&friend)
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	err = model.DB.Model(&friend).Association("Friends").Append(&user)
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	return &serialize.Base{
 		Status: 200,
@@ -131,11 +139,57 @@ func PullGroup(userID string, GroupID int) *serialize.Base {
 	model.DB.Model(&model.Group{}).Where("id = ?", GroupID).First(&group)
 	err = model.DB.Model(&group).Association("Users").Append(&user)
 	if err != nil {
-		panic(err)
+		log.Println(err)
 	}
 	return &serialize.Base{
 		Status: 200,
 		Msg:    "ok",
 		Data:   "进群成功！",
 	}
+}
+
+func FindUser(id string) model.User {
+	var userInfo model.User
+	model.DB.Model(&model.User{}).Where("id = ?", id).First(&userInfo)
+	return userInfo
+}
+
+func FindFriends(id string) []model.User {
+	var userInfo model.User
+	var friends []model.User
+	model.DB.Model(&model.User{}).Where("id = ?", id).First(&userInfo)
+	err := model.DB.Model(&userInfo).Association("Friends").Find(&friends)
+	if err != nil {
+		log.Println(err)
+	}
+	return friends
+}
+
+func FindGroup(groupID int, id string) []model.User {
+	var group model.Group
+	var users []model.User
+	model.DB.Model(&model.Group{}).Where("id = ?", groupID).First(&group)
+	err := model.DB.Model(&group).Where("user_id = ?", id).
+		Association("Users").Find(&users)
+	if err != nil {
+		log.Println(err)
+	}
+	return users
+}
+
+func FindMembers(groupId int) []model.User {
+	var group model.Group
+	var users []model.User
+	model.DB.Model(&model.Group{}).Where("id = ?", groupId).First(&group)
+	err := model.DB.Model(&group).Association("Users").Find(&users)
+	if err != nil {
+		log.Println(err)
+	}
+	return users
+}
+
+func FindOneGroup(groupID int) model.Group {
+	var group model.Group
+	model.DB.Model(&model.Group{}).Where("id = ?", groupID).First(&group)
+	return group
 }

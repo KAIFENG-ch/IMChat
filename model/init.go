@@ -20,7 +20,7 @@ func Database(dsn string) {
 	sqlDB.SetConnMaxIdleTime(time.Hour)
 	DB = db
 	err = DB.Set("gorm:table_option", "ENGINE=InnoDB").
-		AutoMigrate(&User{}, &Group{}, &Message{})
+		AutoMigrate(&User{}, &Group{}, &Message{}, &GroupMessage{})
 	if err != nil {
 		return
 	}
