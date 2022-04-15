@@ -2,7 +2,6 @@ package service
 
 import (
 	"IMChat/dao"
-	"IMChat/model"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
@@ -33,7 +32,11 @@ func (m *ClientManage) Connect() {
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
 			friends := dao.FindFriends(conn.ID)
 			for _, u := range friends {
-				model.RDB.SAdd(conn.ID, u.ID)
+				dao.AddSet(conn.ID+"friends", strconv.Itoa(int(u.ID)))
+			}
+			groups := dao.FindGroup(conn.ID)
+			for _, g := range groups {
+				dao.AddSet(conn.ID+"group", strconv.Itoa(int(g.ID)))
 			}
 			res := dao.ReadMessage(conn.ID, conn.SendID)
 			for _, m := range res {

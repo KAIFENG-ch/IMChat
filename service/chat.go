@@ -78,7 +78,7 @@ func WsHandler(c *gin.Context) {
 		},
 	}).Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		return
+		log.Println(err)
 	}
 	client := &Client{
 		ID:     uid,
@@ -106,29 +106,26 @@ func (c *Client) Read() {
 		}
 		switch message.Type {
 		case 3:
-			//var users []model.User
-			//var group model.Group
-			//model.DB.Model(&model.Group{}).Where("id = ?", message.Group).First(&group)
-			//err := model.DB.Model(&group).Association("Users").Find(&users)
-			users := dao.FindMembers(message.Group)
-			if err != nil {
-				panic(err)
+			if dao.IsMember(c.SendID+"group", strconv.Itoa(message.Group)) {
+				users := dao.FindMembers(message.Group)
+				var clients []*Client
+				for _, u := range users {
+					Manager.Clients.Lock()
+					clients = append(clients, Manager.Clients.Clients[strconv.Itoa(int(u.ID))])
+					Manager.Clients.Unlock()
+				}
+				broadcast := &GroupBroadcast{
+					GroupId: message.Group,
+					Send:    c,
+					Client:  clients,
+					Message: message,
+				}
+				Manager.GroupBroadcast <- broadcast
+			} else {
+				_ = c.Socket.WriteMessage(websocket.TextMessage, []byte("您不是群成员"))
 			}
-			var clients []*Client
-			for _, u := range users {
-				Manager.Clients.Lock()
-				clients = append(clients, Manager.Clients.Clients[strconv.Itoa(int(u.ID))])
-				Manager.Clients.Unlock()
-			}
-			broadcast := &GroupBroadcast{
-				GroupId: message.Group,
-				Send:    c,
-				Client:  clients,
-				Message: message,
-			}
-			Manager.GroupBroadcast <- broadcast
 		case 2:
-			users := dao.FindGroup(message.Group, c.ID)
+			users := dao.FindGroupUser(message.Group, c.ID)
 			if len(users) == 0 {
 				_ = c.Socket.WriteMessage(websocket.TextMessage, []byte("您不是群成员"))
 				continue
@@ -154,24 +151,20 @@ func (c *Client) Read() {
 			log.Printf("收到客户的申请")
 			Manager.Broadcast <- broadcast
 		case 0:
-			friends := dao.FindFriends(c.ID)
-			if len(friends) == 0 {
-				_ = c.Socket.WriteMessage(websocket.TextMessage,
-					[]byte("该用户不是你的好友"))
-				continue
+			if dao.IsMember(c.SendID, c.ID) {
+				broadcast := &Broadcast{
+					Client: c,
+					Message: &SendMsg{
+						Type:    message.Type,
+						Content: message.Content,
+					},
+				}
+				if string(message.Content) == "" {
+					return
+				}
+				log.Printf("收到客户的信息:%s", message.Content)
+				Manager.Broadcast <- broadcast
 			}
-			broadcast := &Broadcast{
-				Client: c,
-				Message: &SendMsg{
-					Type:    message.Type,
-					Content: message.Content,
-				},
-			}
-			if string(message.Content) == "" {
-				return
-			}
-			log.Printf("收到客户的信息:%s", message.Content)
-			Manager.Broadcast <- broadcast
 		}
 	}
 }

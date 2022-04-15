@@ -165,7 +165,7 @@ func FindFriends(id string) []model.User {
 	return friends
 }
 
-func FindGroup(groupID int, id string) []model.User {
+func FindGroupUser(groupID int, id string) []model.User {
 	var group model.Group
 	var users []model.User
 	model.DB.Model(&model.Group{}).Where("id = ?", groupID).First(&group)
@@ -175,6 +175,17 @@ func FindGroup(groupID int, id string) []model.User {
 		log.Println(err)
 	}
 	return users
+}
+
+func FindGroup(userId string) []model.Group {
+	var groups []model.Group
+	var user model.User
+	model.DB.Model(&model.User{}).Where("id = ?", userId).First(&user)
+	err := model.DB.Model(&user).Association("Groups").Find(&groups)
+	if err != nil {
+		log.Println(err)
+	}
+	return groups
 }
 
 func FindMembers(groupId int) []model.User {
