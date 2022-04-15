@@ -71,7 +71,7 @@ func (m *ClientManage) Connect() {
 			if flag {
 				log.Println("对方在线应答")
 				replyMsg := &ReplyMsg{
-					Code:    30000,
+					Code:    50000,
 					Content: "对方在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
@@ -85,7 +85,7 @@ func (m *ClientManage) Connect() {
 			} else {
 				log.Println("对方不在线")
 				replyMsg := ReplyMsg{
-					Code:    30001,
+					Code:    50001,
 					Content: "对方不在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
@@ -100,7 +100,7 @@ func (m *ClientManage) Connect() {
 		case message := <-Manager.GroupBroadcast:
 			log.Printf("群消息已发送：%s", message.Message.Content)
 			replyMsg := &ReplyMsg{
-				Code:    30000,
+				Code:    50000,
 				Content: "群消息已发送",
 			}
 			msg, _ := json.Marshal(replyMsg)

@@ -216,7 +216,7 @@ func (c *Client) Write() {
 					replyMsg := &ReplyMsg{
 						From:    c.ID,
 						Content: sendUser.Name + "请求添加你为好友",
-						Code:    30000,
+						Code:    50000,
 					}
 					msg, _ := json.Marshal(replyMsg)
 					_ = c.Socket.WriteMessage(websocket.TextMessage, msg)
