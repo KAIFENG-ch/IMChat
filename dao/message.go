@@ -32,3 +32,15 @@ func ReadMessage(uid string, toUid string) []model.Message {
 		Or("user_id = ? and to_user_id = ?", toUID, UID).Find(&msg)
 	return msg
 }
+
+func InsertGroupMsg(groupId int, uid string, content string, expire int64, status bool) {
+	id, _ := strconv.Atoi(uid)
+	insertMsg := &model.GroupMessage{
+		GroupID:  groupId,
+		SenderID: id,
+		Content:  content,
+		EndAt:    time.Now().Unix() + expire,
+		Status:   status,
+	}
+	model.DB.Create(&insertMsg)
+}

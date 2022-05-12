@@ -4,6 +4,7 @@ import (
 	"IMChat/model"
 	"fmt"
 	"github.com/spf13/viper"
+	"log"
 )
 
 type SqlDb struct {
@@ -41,7 +42,7 @@ func InitConfig() {
 	var myConfig Dbs
 	err = viper.Unmarshal(&myConfig)
 	if err != nil {
-		return
+		log.Println(err)
 	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s?"+
 		"charset=utf8mb4&parseTime=True&loc=Local", myConfig.Sql.User,
@@ -49,6 +50,6 @@ func InitConfig() {
 	model.Database(dsn)
 	err = model.RedisDB(myConfig.Redis.Host, myConfig.Redis.Port)
 	if err != nil {
-		return
+		log.Println(err)
 	}
 }

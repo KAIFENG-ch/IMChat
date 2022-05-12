@@ -30,6 +30,14 @@ func (m *ClientManage) Connect() {
 			Manager.Clients.Clients[conn.ID] = conn
 			Manager.Clients.Unlock()
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
+			friends := dao.FindFriends(conn.ID)
+			for _, u := range friends {
+				dao.AddSet(conn.ID+"friends", strconv.Itoa(int(u.ID)))
+			}
+			groups := dao.FindGroup(conn.ID)
+			for _, g := range groups {
+				dao.AddSet(conn.ID+"group", strconv.Itoa(int(g.ID)))
+			}
 			res := dao.ReadMessage(conn.ID, conn.SendID)
 			for _, m := range res {
 				_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte(m.Content))
@@ -40,7 +48,6 @@ func (m *ClientManage) Connect() {
 			if _, ok := Manager.Clients.Clients[conn.ID]; ok {
 				_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("disconnect"))
 				close(conn.Send)
-				//close(Manager.Broadcast)
 				delete(Manager.Clients.Clients, conn.ID)
 			}
 			Manager.Clients.Unlock()
@@ -48,7 +55,6 @@ func (m *ClientManage) Connect() {
 			sendId := message.Client.SendID
 			flag := false
 			Manager.Clients.Lock()
-			//_ = json.Unmarshal(message, &MessageStruct)
 			for id, conn := range Manager.Clients.Clients {
 				if id != sendId {
 					continue
@@ -65,32 +71,36 @@ func (m *ClientManage) Connect() {
 			if flag {
 				log.Println("对方在线应答")
 				replyMsg := &ReplyMsg{
-					Code:    30000,
+					Code:    50000,
 					Content: "对方在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
 				uid, _ := strconv.Atoi(message.Client.ID)
 				toUid, _ := strconv.Atoi(message.Client.SendID)
-				dao.InsertMsg(uid, toUid, message.Message.Content,
-					int64(time.Hour*24*30), true)
+				if message.Message.Type == 0 {
+					dao.InsertMsg(uid, toUid, message.Message.Content,
+						int64(time.Hour*24*30), true)
+				}
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			} else {
 				log.Println("对方不在线")
 				replyMsg := ReplyMsg{
-					Code:    30001,
+					Code:    50001,
 					Content: "对方不在线应答",
 				}
 				msg, _ := json.Marshal(replyMsg)
 				uid, _ := strconv.Atoi(message.Client.ID)
 				toUid, _ := strconv.Atoi(message.Client.SendID)
-				dao.InsertMsg(uid, toUid, message.Message.Content,
-					int64(time.Hour*24*30), false)
+				if message.Message.Type == 0 {
+					dao.InsertMsg(uid, toUid, message.Message.Content,
+						int64(time.Hour*24*30), false)
+				}
 				_ = message.Client.Socket.WriteMessage(websocket.TextMessage, msg)
 			}
 		case message := <-Manager.GroupBroadcast:
 			log.Printf("群消息已发送：%s", message.Message.Content)
 			replyMsg := &ReplyMsg{
-				Code:    30000,
+				Code:    50000,
 				Content: "群消息已发送",
 			}
 			msg, _ := json.Marshal(replyMsg)
@@ -105,6 +115,8 @@ func (m *ClientManage) Connect() {
 				if ok {
 					message.Message.SendID = message.Send.ID
 					conn.Send <- message.Message
+					dao.InsertGroupMsg(message.GroupId, message.Send.ID, message.Message.Content,
+						int64(time.Hour*24*30), true)
 				}
 			}
 		}
