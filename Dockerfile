@@ -1,18 +1,20 @@
 FROM golang:1.17 as builder
 
-MAINTAINER KAIFENG_ch 3184218074@qq.com
+MAINTAINER KAIFENG_ch
 
 ENV GO111MODULE = on \
-    GOPROXY = https://goproxy.cn,direct \
-    CGO_ENABLE = 0 \
-    GOOS = linux \
-    GOARCH = amd64
+    goproxy = https://goproxy.cn,direct \
+    CGO_ENABLED=0 \
+    GOOS = Linux \
+    GOARCH = amd64  \
 
-WORKDIR /app
+WORKDIR /go/src
 COPY . .
-RUN go build -o IMChat .
 
-ENV GIN_MODE = release
+RUN go build -t imchat:1.0 .
+
+WORKDIR /dist
+
 EXPOSE 8000
 
-ENTRYPOINT ./main
+CMD ['/dist/app']

@@ -2,6 +2,7 @@ package service
 
 import (
 	"IMChat/dao"
+	"IMChat/model"
 	"encoding/json"
 	"github.com/gorilla/websocket"
 	"log"
@@ -29,6 +30,7 @@ func (m *ClientManage) Connect() {
 			Manager.Clients.Lock()
 			Manager.Clients.Clients[conn.ID] = conn
 			Manager.Clients.Unlock()
+			model.RDB.LPush("user", conn.ID)
 			_ = conn.Socket.WriteMessage(websocket.TextMessage, []byte("successful connect"))
 			friends := dao.FindFriends(conn.ID)
 			for _, u := range friends {

@@ -1,0 +1,27 @@
+version: '1'
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+
+  mysql:
+    container_name: mysql
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD = 123456
+      MYSQL_DATABASE = imchat
+    volumes:
+      - /var/lib/mysql:/var/lib/mysql
+    ports:
+      - 3306
+
+  redis:
+    container_name: redis
+    image: redis:latest
+    restart: always
+    volumes:
+      - /usr/local/redis:/usr/local/redis
+    ports:
+      - 6379:6379
